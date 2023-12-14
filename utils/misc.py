@@ -68,8 +68,7 @@ def extract_base_path(full_path, target_directory):
     path_parts = full_path.split(os.sep)
     if target_directory in path_parts:
         target_index = path_parts.index(target_directory)
-        base_path = os.sep.join(path_parts[: target_index + 1])
-        return base_path
+        return os.sep.join(path_parts[: target_index + 1])
     else:
         return None
 

@@ -3,6 +3,7 @@ This file contains the functions available to the FunctionCallingAgent.
 """
 
 
+
 import autogen
 
 from prompts.misc_prompts import (
@@ -163,11 +164,11 @@ agent_functions = [
             "properties": {
                 "domain_description": {
                     "type": "string",
-                    "description": f"The description of the domain of knowledge. The expert will use this description to do a similarity check against the available domain descriptions.",
+                    "description": "The description of the domain of knowledge. The expert will use this description to do a similarity check against the available domain descriptions.",
                 },
                 "question": {
                     "type": "string",
-                    "description": f"The question to ask the archive agent. Make sure you are explicit, specific, and detailed in your question.",
+                    "description": "The question to ask the archive agent. Make sure you are explicit, specific, and detailed in your question.",
                 },
             },
             "required": ["domain_description", "question"],
@@ -261,11 +262,10 @@ def consult_archive_agent(domain_description, question):
                         )
         break
 
-    # Convert the list of domain descriptions to a string
-    str_desc = ""
-    for desc in domain_descriptions:
-        str_desc += f"Domain: {desc['domain_name']}\n\nDescription:\n{'*' * 50}\n{desc['domain_description']}\n{'*' * 50}\n\n"
-
+    str_desc = "".join(
+        f"Domain: {desc['domain_name']}\n\nDescription:\n{'*' * 50}\n{desc['domain_description']}\n{'*' * 50}\n\n"
+        for desc in domain_descriptions
+    )
     find_domain_query = ARCHIVE_AGENT_MATCH_DOMAIN_PROMPT.format(
         domain_description=domain_description,
         available_domains=str_desc,
