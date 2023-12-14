@@ -135,9 +135,7 @@ class ModifiedGroupChat(GroupChat):
             )
 
     def describe_agent_actions(self, agent: ConversableAgent):
-        callable_functions = agent["llm_config"].get("functions", False)
-
-        if callable_functions:
+        if callable_functions := agent["llm_config"].get("functions", False):
             AGENT_FUNCTION_LIST = "AGENT_REGISTERED_FUNCTIONS:"
             for function in callable_functions:
                 AGENT_FUNCTION_LIST += f"""
@@ -155,28 +153,27 @@ FUNCTION_ARGUMENTS: {function["parameters"]}
         agent_team = self._participant_roles()
         agent_names = [agent.name for agent in agents]
 
-        if self.use_agent_council:
-            all_agent_functions = []
-            # loop through each agent and get their functions
-            for agent in agents:
-                agent_functions = self.describe_agent_actions(
-                    {"llm_config": agent.llm_config}
-                )
-                if agent_functions:
-                    all_agent_functions.append(agent_functions)
-
-            agent_functions = "\n".join(all_agent_functions)
-            # Remove all instances of "AGENT_REGISTERED_FUNCTIONS:" from the agent_functions string
-            agent_functions = agent_functions.replace("AGENT_REGISTERED_FUNCTIONS:", "")
-
-            return AGENT_COUNCIL_SYSTEM_PROMPT.format(
-                agent_functions=agent_functions,
-            )
-        else:
+        if not self.use_agent_council:
             return DEFAULT_COVERSATION_MANAGER_SYSTEM_PROMPT.format(
                 agent_team=agent_team,
                 agent_names=agent_names,
             )
+        all_agent_functions = []
+        # loop through each agent and get their functions
+        for agent in agents:
+            agent_functions = self.describe_agent_actions(
+                {"llm_config": agent.llm_config}
+            )
+            if agent_functions:
+                all_agent_functions.append(agent_functions)
+
+        agent_functions = "\n".join(all_agent_functions)
+        # Remove all instances of "AGENT_REGISTERED_FUNCTIONS:" from the agent_functions string
+        agent_functions = agent_functions.replace("AGENT_REGISTERED_FUNCTIONS:", "")
+
+        return AGENT_COUNCIL_SYSTEM_PROMPT.format(
+            agent_functions=agent_functions,
+        )
 
     def _participant_roles(self):
         roles = []
@@ -257,7 +254,7 @@ FUNCTION_ARGUMENTS: {function["parameters"]}
             if self.inject_agent_council:
                 # Inject the persona discussion into the message history
                 header = f"####\nSOURCE_AGENT: AGENT_COUNCIL\n####"
-                response = f"{header}\n\n" + response
+                response = f"{header}\n\n{response}"
                 self.messages.append({"role": "system", "content": response})
                 # Send the persona discussion to all agents
                 for agent in self.agents:
@@ -276,10 +273,9 @@ FUNCTION_ARGUMENTS: {function["parameters"]}
             print(
                 f"{COLOR_GET_NEXT_ACTOR_RESPONSE}GET_NEXT_ACTOR_RESPONSE:{RESET_COLOR} \n{response_json['analysis']}"
             )
-            name = response_json["next_actor"]
         else:
             response_json = extract_json_response(response)
-            name = response_json["next_actor"]
+        name = response_json["next_actor"]
         if not final:
             return self.next_agent(last_speaker, agents)
         try:
@@ -291,7 +287,7 @@ FUNCTION_ARGUMENTS: {function["parameters"]}
             # Check if UserProxy exists in the agent list.
             for agent in agents:
                 # Check for "User" or "UserProxy" in the agent name
-                if agent.name == "User" or agent.name == "UserProxy":
+                if agent.name in ["User", "UserProxy"]:
                     return self.agent_by_name(agent.name)
 
             return self.next_agent(last_speaker, agents)
@@ -452,14 +448,12 @@ class ModifiedGroupChatManager(GroupChatManager):
                 # Let the speaker speak
                 reply = speaker.generate_reply(sender=self)
             except KeyboardInterrupt:
-                # Let the admin agent speak if interrupted
-                if groupchat.admin_name in groupchat.agent_names:
-                    # Admin agent is one of the participants
-                    speaker = groupchat.agent_by_name(groupchat.admin_name)
-                    reply = speaker.generate_reply(sender=self)
-                else:
+                if groupchat.admin_name not in groupchat.agent_names:
                     # Admin agent is not found in the participants
                     raise
+                # Admin agent is one of the participants
+                speaker = groupchat.agent_by_name(groupchat.admin_name)
+                reply = speaker.generate_reply(sender=self)
             if reply is None:
                 break
 
@@ -467,7 +461,7 @@ class ModifiedGroupChatManager(GroupChatManager):
             if isinstance(reply, str):
                 header = f"####\nSOURCE_AGENT: {speaker.name}\n####"
                 reply = self.remove_agent_pattern(reply)
-                reply = f"{header}\n\n" + reply
+                reply = f"{header}\n\n{reply}"
             # The speaker sends the message without requesting a reply
 
             speaker.send(reply, self, request_reply=False)
@@ -485,7 +479,4 @@ class ModifiedGroupChatManager(GroupChatManager):
         # Define the regular expression pattern to match the specified string
         pattern = r"####\nSOURCE_AGENT: .*\n####"
 
-        # Use regular expression to substitute the pattern with an empty string
-        modified_string = re.sub(pattern, "", input_string)
-
-        return modified_string
+        return re.sub(pattern, "", input_string)

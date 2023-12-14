@@ -131,9 +131,7 @@ def serpapi_search(query, numresults=10, start=1, search_engine=default_search_e
     }
 
     search = GoogleSearch(params)
-    results = search.get_dict()
-
-    return results
+    return search.get_dict()
 
 def serpapi_github_search(query, numresults=10, page=1, search_engine=default_search_engine):
     logger.info("Searching serpapi for relevant github repos...")
@@ -166,7 +164,7 @@ def ddg_github_search(query, numresults=10):
     logger.info("Searching duckduckgo for relevant github repos...")
     excluded_urls = ["github.com/topics"]
     query = f"{query} site:github.com"
-    
+
     github_urls = []
 
     # Initialize page count and results per page
@@ -176,10 +174,7 @@ def ddg_github_search(query, numresults=10):
     while len(github_urls) < numresults:
         with DDGS() as ddgs:
             try:
-                # Fetch a set number of results per 'page'
-                current_results = []
-                for result in ddgs.text(query, max_results=results_per_page * page):
-                    current_results.append(result)
+                current_results = list(ddgs.text(query, max_results=results_per_page * page))
                 # Only process the latest set of results
                 new_results = current_results[results_per_page * (page - 1):]
 
@@ -213,7 +208,9 @@ def get_repo_details(repo_url):
     # handle 401 response
     if repo_response.status_code == 401:
         raise Exception("Invalid GITHUB_PERSONAL_ACCESS_TOKEN.")
-    readme_response = requests.get(api_url + "/contents/README.md", headers=headers)
+    readme_response = requests.get(
+        f"{api_url}/contents/README.md", headers=headers
+    )
 
     if repo_response.status_code == 200 and readme_response.status_code == 200:
         repo_data = repo_response.json()
@@ -243,12 +240,11 @@ def search_github_repositories(query, numresults=10, current_page=1, search_engi
         repo_urls = serpapi_github_search(query, numresults, current_page, search_engine="google")
     else:
         raise Exception(f"Invalid search engine: {search_engine}")
-    
+
     repositories_info = []
 
     for url in repo_urls:
-        repo_details = get_repo_details(url)
-        if repo_details:
+        if repo_details := get_repo_details(url):
             repositories_info.append(repo_details)
 
     return repositories_info
@@ -277,7 +273,7 @@ def find_relevant_github_repo(domain_description, rating_threshold=6, search_eng
     repo_rating_response = []
     current_page = 0
     max_pages = 5
-    while len(repo_rating_response) == 0:
+    while not repo_rating_response:
         if current_page >= max_pages:
             raise Exception(f"Could not find a relevant repository for domain description: {domain_description}")
         current_page += 1
@@ -287,11 +283,10 @@ def find_relevant_github_repo(domain_description, rating_threshold=6, search_eng
         for repo in repos:
             repo['readme'] = repo['readme'][:5000]
 
-        # Convert the list of url descriptions to a string
-        str_desc = ""
-        for repo in repos:
-            str_desc += f"URL: {repo['url']}\nNAME: {repo['name']}\n\DESCRIPTION: {repo['description']}\nREADME:\n{'*' * 50}\n{repo['readme']}\n{'*' * 50}\n\n"
-
+        str_desc = "".join(
+            f"URL: {repo['url']}\nNAME: {repo['name']}\n\DESCRIPTION: {repo['description']}\nREADME:\n{'*' * 50}\n{repo['readme']}\n{'*' * 50}\n\n"
+            for repo in repos
+        )
         rate_repos_query = RESEARCH_AGENT_RATE_REPOS_PROMPT.format(
             domain_description=domain_description,
             repository_descriptions=str_desc,
@@ -309,7 +304,7 @@ def find_relevant_github_repo(domain_description, rating_threshold=6, search_eng
         # filter out repos with a rating below the threshold
         repo_rating_response = [repo for repo in repo_rating_response if int(repo["rating"]) >= rating_threshold]
 
-        if len(repo_rating_response) == 0:
+        if not repo_rating_response:
             logger.info(f"No relevant repositories found above the threshold rating of {rating_threshold}. Trying again...")
 
     # Sort the list by the "rating" key
@@ -322,7 +317,6 @@ def find_relevant_github_repo(domain_description, rating_threshold=6, search_eng
 
     # Convert the list of domain descriptions to a string
     str_desc = ""
-        # Get "readme" from matching item in url_descriptions
     for repo_desc in repos:
         if repo_desc["url"] == top_repo["url"]:
             top_repo["readme"] = repo_desc["readme"]
@@ -361,9 +355,7 @@ def find_relevant_github_repo(domain_description, rating_threshold=6, search_eng
 
 def check_for_resource(file_path):
     # Check if the file exists
-    if os.path.exists(file_path):
-        return True
-    return False
+    return bool(os.path.exists(file_path))
 
 def wait_for_resource(file_path):
     # Check if the flag file exists in the

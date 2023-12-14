@@ -292,10 +292,10 @@ def rag_fusion(query, query_context=None, number_of_variations=4):
         logger.error(f"Error in RAG fusion: {e}")
         raise
 
-    query_variations = [
-        variation["query"] for variation in rag_fusion_response["query_variations"]
+    return [
+        variation["query"]
+        for variation in rag_fusion_response["query_variations"]
     ]
-    return query_variations
 
 
 def get_retrieved_nodes(
@@ -569,5 +569,4 @@ def get_informed_answer(
         service_context=response_synthesizer_context,
     )
 
-    response = response_synthesizer.synthesize(question, nodes=nodes)
-    return response
+    return response_synthesizer.synthesize(question, nodes=nodes)

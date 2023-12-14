@@ -38,7 +38,7 @@ def fetch_and_save(url, base_url, folder, downloaded):
         # Create a path that mirrors the URL structure
         parsed_url = urllib.parse.urlparse(url)
         path = parsed_url.path.lstrip('/').removesuffix('.html')
-        local_path = os.path.join(folder, path) + '.html'
+        local_path = f'{os.path.join(folder, path)}.html'
 
         print("LOCAL PATH: ", local_path)
 
@@ -94,7 +94,7 @@ def main():
     # base_url = urllib.parse.urljoin(start_url, '/')  # Base URL for subset comparison
     print("BASE URL: ", base_url)
     downloaded = set()  # To keep track of what has been downloaded
-    fetch_and_save(start_url, base_url, save_folder, downloaded)
+    fetch_and_save(base_url, base_url, save_folder, downloaded)
     print(f"Total files downloaded: {len(downloaded)}")
 
 if __name__ == '__main__':
